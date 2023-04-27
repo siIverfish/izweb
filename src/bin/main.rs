@@ -7,15 +7,20 @@ use std::io::prelude::*;
 
 use tictactoe::request::{Request, Method};
 use tictactoe::response::{Response, ContentType};
+use tictactoe::threads::ThreadPool;
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     let listener: TcpListener = 
         TcpListener::bind("127.0.0.1:7878")?;
+
+    let pool: ThreadPool = ThreadPool::new(4);
     
     for stream in listener.incoming() {
         let mut stream: TcpStream = stream?;
         
-        handle_connection(&mut stream)?;
+        pool.execute(move || {
+            handle_connection(&mut stream).unwrap();
+        });
     }
 
     Ok(())
@@ -26,6 +31,8 @@ fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
     stream.read(&mut buffer)?;
 
     let buffer = String::from_utf8(buffer.to_vec())?;
+
+    // println!("{}", buffer);
 
     let request = Request::from_string(&buffer);
 

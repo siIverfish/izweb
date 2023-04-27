@@ -19,6 +19,15 @@ impl ToString for ContentType {
     }
 }
 
+/// The object used to store information about outgoing responses.
+/// 
+/// The main loop of the server:
+/// 
+/// 1. Server gets request bytes
+/// 2. Makes bytes into Request object
+/// 3. Routing
+/// 4. View code returns Response object
+/// 5. Send response object
 pub struct Response {
     status: Option<String>,
     content: Option<String>,
@@ -64,7 +73,7 @@ impl Response {
     }
 
     pub fn from_file(file_name: &str) -> Response {
-        println!("Reading from path: {}", file_name);
+        // println!("Reading from path: {}", file_name);
         let content_bytes: Vec<u8> = fs::read(file_name).unwrap();
         let content: String = String::from_utf8(content_bytes).unwrap();
 
