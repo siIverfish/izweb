@@ -1,20 +1,33 @@
 use std::error::Error;
 
+type SendableError = Box<dyn Error + Send + Sync + 'static>;
 
 #[derive(Debug)]
-pub enum Method<'a> {
-    Get(&'a str),
-    Post(&'a str),
+pub enum Method {
+    Get(String),
+    Post(String),
 }
 
-impl Method<'_> {
-    fn from_strings<'a>(method: &str, path: &'a str) -> Result<Method<'a>, Box<dyn Error>> {
+impl Method {
+    fn from_strings<'a>(method: &str, path: &'a str) -> Result<Method, SendableError> {
         match method {
             "GET"  => Ok(Method::Get (path.into())),
             "POST" => Ok(Method::Post(path.into())),
             _      => Err("did not match")?,
         }
     }
+
+    pub fn as_ref<'a>(&'a self) -> MethodRef<'a> {
+        match self {
+            Method::Get(s) => MethodRef::Get(s),
+            Method::Post(s) => MethodRef::Post(s),
+        }
+    }
+}
+
+pub enum MethodRef<'a> {
+    Get(&'a str),
+    Post(&'a str)
 }
 
 
@@ -28,13 +41,13 @@ impl Method<'_> {
 /// 4. View code returns Response object
 /// 5. Send response object
 #[derive(Debug)]
-pub struct Request<'a> {
-    pub method: Method<'a>,
+pub struct Request {
+    pub method: Method,
     pub protocol: String,
     pub headers: Vec<(String, String)>
 }
 
-impl Request<'_>  {
+impl Request  {
     /// Constructs a Request object from a web request represented as an `&str`.
     /// e.g.
     /// 
@@ -67,8 +80,8 @@ impl Request<'_>  {
     /// 
     /// assert_eq!(request.method, Method::Get("/favicon.ico"));
     /// ```
-    pub fn from_string(string: &str) -> Result<Request, Box<dyn Error>> {
-        let mut lines = string.split("\r\n");
+    pub fn from_string<'a>(string: &'a str) -> Result<Request, SendableError> {
+        let mut lines = string.lines();
 
         let mut first_line = lines.next().ok_or("failed to get first line")?.split(" ");
 
@@ -98,6 +111,6 @@ impl Request<'_>  {
             }
         }
 
-        Ok(Request { method, protocol, headers })
+        Ok( Request { method, protocol, headers } )
     }
 }

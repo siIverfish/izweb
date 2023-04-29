@@ -1,64 +1,25 @@
-use std::net::{TcpListener, TcpStream};
-
-use std::error::Error;
-
-use std::io::prelude::*;
+use tictactoe::request::{Request, MethodRef};
+use tictactoe::app::{View, App};
+use tictactoe::response::Response;
 
 
-use tictactoe::request::{Request, Method};
-use tictactoe::response::{Response, ContentType};
-use tictactoe::threads::ThreadPool;
+fn index(_request: Request) -> Response {
+    Response::html("index")
+}
 
-fn main() -> Result<(), Box<dyn std::error::Error>>{
-    let listener: TcpListener = 
-        TcpListener::bind("127.0.0.1:7878")?;
+fn error_404(_request: Request) -> Response {
+    Response::html("404")
+}
 
-    let pool: ThreadPool = ThreadPool::new(4);
-    
-    for stream in listener.incoming() {
-        let mut stream: TcpStream = stream?;
-        
-        pool.execute(move || {
-            handle_connection(&mut stream).unwrap();
-        });
+fn route(request: &Request) -> View {
+    match request.method.as_ref() {
+        MethodRef::Get("/") => Box::new(index),
+        _                   => Box::new(error_404),
     }
-
-    Ok(())
 }
 
-fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
-    let mut buffer: [u8; 1024] = [0; 1024];
-    stream.read(&mut buffer)?;
-
-    let buffer = String::from_utf8(buffer.to_vec())?;
-
-    // println!("{}", buffer);
-
-    let request = Request::from_string(&buffer);
-
-    let response: Response = match request {
-        Ok(request)       => route_request(request),
-        Err(error) => route_404    (error),
-    };
-
-    response.send(stream)?;
-
-    Ok(())
-}
-
-fn route_404 (error: Box<dyn Error>) -> Response {
-    let status: String = String::from("400 BAD REQUEST");
-
-    Response::new()
-        .with_content(format!("{:?}", error))
-        .with_content_type(ContentType::Custom(String::from("text/plain")))
-        .with_status(status)
-}
-
-fn route_request(request: Request) -> Response {
-    match request.method {
-        Method::Get("/")        => Response::html("index"),
-        Method::Get("/about")   => Response::html("about"),
-        _                       => Response::html("404"),
-    }
+fn main() {
+    App::build()
+        .with_route_fn(route)
+        .run()
 }
